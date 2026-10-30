@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HR Portal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f2f4f1;--sf:#fff;--ink:#1c2a29;--mute:#5d6b69;--line:#d9dfdb;--ac:#2f4bd0;--aci:#fff;--okc:#1f7a4d;--okb:#e2f3ea;--wc:#a86a00;--wb:#fbefd5;--bc:#b3362b;--bb:#f8e1de}
+@media (prefers-color-scheme:dark){:root{--bg:#121917;--sf:#1b2523;--ink:#e6eeec;--mute:#9bacaa;--line:#2d3b38;--ac:#8ea0ff;--aci:#10163d;--okc:#6fd3a0;--okb:#17352a;--wc:#f0b955;--wb:#3a2f12;--bc:#f09086;--bb:#3d1f1c;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 "Public Sans",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque",Georgia,sans-serif;margin:0}
+h1{font-size:28px}h2{font-size:18px;margin-bottom:10px}h3{font-size:15px;margin:18px 0 0}
+.app{display:grid;grid-template-columns:210px 1fr;min-height:100vh}
+nav{background:var(--sf);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{font:700 18px "Bricolage Grotesque",sans-serif;padding:4px 10px 14px}
+nav button{all:unset;cursor:pointer;padding:9px 12px;border-radius:8px;color:var(--mute);font-weight:500}
+nav button[aria-current=true]{background:var(--ac);color:var(--aci)}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+main{padding:26px clamp(14px,3.5vw,40px);max-width:1040px;width:100%}
+.sub{color:var(--mute);margin:4px 0 20px}.mute{color:var(--mute);font-size:13px}
+.panel{background:var(--sf);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.stat b{font:700 30px "Bricolage Grotesque",sans-serif;display:block}
+label{display:block;font-weight:500;font-size:13px}
+input,select{width:100%;margin-top:4px;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px}
+input[type=checkbox]{width:auto;margin:0 8px 0 0}
+.btn{font:600 14px "Public Sans",sans-serif;background:var(--ac);color:var(--aci);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.btn.g{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.sm{padding:4px 10px;font-size:13px}
+.btn.d{background:transparent;color:var(--bc);border:1px solid var(--line)}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:16px 0}.tabs button{white-space:nowrap}
+.tag{font-size:12px;font-weight:600;padding:2px 9px;border-radius:99px;background:var(--okb);color:var(--okc);white-space:nowrap}
+.tag.w{background:var(--wb);color:var(--wc)}.tag.b{background:var(--bb);color:var(--bc)}
+.sc{overflow-x:auto}table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:9px 8px;border-top:1px solid var(--line);white-space:nowrap}th{font-size:13px;color:var(--mute);border-top:0}
+tr[data-open]{cursor:pointer}tr[data-open]:hover{background:var(--bg)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.al{list-style:none;margin:0;padding:0}.al li{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}.al li:first-child{border-top:0}
+.chk{display:block;padding:6px 0;font-weight:400;font-size:15px}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s}#toast.on{opacity:1}
+#slip{display:none}
+@media print{body>*:not(#slip){display:none!important}#slip{display:block;color:#000;background:#fff;padding:24px}#slip td{border:1px solid #999}}
+@media (max-width:700px){.app{grid-template-columns:1fr}nav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line)}.brand{display:none}nav button{white-space:nowrap}}
+.app.out{grid-template-columns:1fr}.app.out nav{display:none}#out{margin-top:auto}
+</style>
+</head>
+<body>
+<div class="app"><nav aria-label="Main"><div class="brand">HR Portal</div>
+<button data-v="dash">Dashboard</button><button data-v="list">Employees</button><button data-v="rep">Reports and backup</button><button data-v="log">Activity log</button><button data-v="users">Users</button><button data-v="out" id="out">Sign out</button></nav>
+<main id="main"></main></div>
+<div id="slip"></div><div id="toast" role="status"></div>
+<script>
+const KEY="hr-portal-v1",TYPES=["Manager","Contract employee","Sales executive","Telesales"];
+const SALES=["Sales executive","Telesales"];
+const $=s=>document.querySelector(s),$$=s=>document.querySelectorAll(s);
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const today=()=>new Date().toISOString().slice(0,10);
+const addD=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};
+const fmt=d=>d?new Date(d+"T00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"}):"-";
+const dd=d=>Math.round((new Date(d+"T00:00")-new Date(today()+"T00:00"))/864e5);
+function ann(d){const t=new Date(today()+"T00:00"),x=new Date(d+"T00:00");const n=new Date(t.getFullYear(),x.getMonth(),x.getDate());if(n<t)n.setFullYear(t.getFullYear()+1);return Math.round((n-t)/864e5)}
+const mk=o=>({status:"Active",onb:{},ex:{},leave:[],inc:[],docs:[],assets:[],train:[],notes:[],...o});
+let S=null;try{S=JSON.parse(localStorage.getItem(KEY))}catch(x){}
+if(!S)S={emps:[
+mk({id:"E1001",name:"Vikram Nair",type:"Manager",phone:"9800000001",team:"Bengaluru branch",joined:"2019-08-01",dob:"1984-11-02",salary:90000,pf:5400,esi:0,tds:6000}),
+mk({id:"E1002",name:"Rohan Shah",type:"Contract employee",phone:"9800000002",team:"Processing",joined:"2025-11-01",contractStart:"2025-11-01",contractEnd:addD(20),salary:28000,pf:1800,esi:210,tds:0}),
+mk({id:"E1003",name:"Karan Bose",type:"Sales executive",phone:"9800000003",team:"Sales",region:"Whitefield",target:12,joined:"2024-02-19",salary:30000,pf:1800,esi:225,tds:0,inc:[{month:"2026-09",target:12,ach:14,amt:7000}]}),
+mk({id:"E1004",name:"Divya Rao",type:"Telesales",phone:"9800000004",team:"Calling team A",shift:"10am to 7pm",region:"South",target:300,joined:"2026-08-10",probEnd:addD(12),salary:22000,pf:1800,esi:165,tds:0})],log:[]};
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){toast("Could not save in this browser")}}
+function log(m){S.log.unshift({t:new Date().toLocaleString("en-IN"),m:(me?me+": ":"")+m});S.log=S.log.slice(0,200)}
+function toast(m){const t=$("#toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),2200)}
+const emp=id=>S.emps.find(e=>e.id===id);
+const UK="hr-portal-users";let U=[];try{U=JSON.parse(localStorage.getItem(UK))||[]}catch(x){}
+if(!U.length)U=[{"name":"HR","user":"hr","role":"HR","salt":"k3x9hr","h":"2acbec46a1f1e7b5542f2023a0e895c79f9f92be8aa1536ef26f952bf92d4859","w":"w3143595171"},{"name":"Admin","user":"admin","role":"Admin","salt":"q7m2ad","h":"a11286eb25a0fad597e9735ad90dc8475e5169099f175dc8a69c4b1747be1662","w":"w3132514685"}];
+const usave=()=>{try{localStorage.setItem(UK,JSON.stringify(U))}catch(x){toast("Could not save accounts")}};
+let me=null,tries=0,lock=0;try{me=sessionStorage.getItem("hr-me")}catch(x){}
+const salt=()=>Math.random().toString(36).slice(2);
+async function hash(p,sl){const t=sl+":"+p;if(window.crypto&&crypto.subtle){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}let h=5381;for(const c of t)h=(h*33^c.charCodeAt(0))>>>0;return "w"+h}
+function setMe(u){me=u;try{u?sessionStorage.setItem("hr-me",u):sessionStorage.removeItem("hr-me")}catch(x){}}
+const DB=new Promise(r=>{try{const q=indexedDB.open("hr-files",1);q.onupgradeneeded=()=>q.result.createObjectStore("f");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(x){r(null)}});
+async function fput(id,blob){const d=await DB;if(!d)throw 0;return new Promise((res,rej)=>{const t=d.transaction("f","readwrite");t.objectStore("f").put(blob,id);t.oncomplete=res;t.onerror=rej})}
+async function fget(id){const d=await DB;if(!d)throw 0;return new Promise((res,rej)=>{const q=d.transaction("f").objectStore("f").get(id);q.onsuccess=()=>res(q.result);q.onerror=rej})}
+async function fdel(id){const d=await DB;if(d)d.transaction("f","readwrite").objectStore("f").delete(id)}
+const F=[["Personal details","name","Full name","text"],["","dob","Date of birth","date"],["","phone","Phone","tel"],["","email","Work email","email"],["","address","Address","text"],["","emerg","Emergency contact","text"],
+["Job details","type","Employee type","select:"+TYPES.join(",")],["","status","Status","select:Active,On leave,Resigned"],["","joined","Joining date","date"],["","team","Team or branch","text"],["","mgr","Reporting manager","text"],["","probEnd","Probation ends","date"],
+["","contractStart","Contract start","date","Contract employee"],["","contractEnd","Contract end","date","Contract employee"],["","region","Area or territory","text","Sales executive,Telesales"],["","target","Monthly target (loans or calls)","number","Sales executive,Telesales"],["","shift","Calling shift","text","Telesales"],
+["Pay and bank","salary","Monthly salary","number"],["","pf","PF deduction","number"],["","esi","ESI deduction","number"],["","tds","TDS deduction","number"],["","bank","Bank account","text"],["","pan","PAN","text"],["","uan","PF or UAN number","text"]];
+const L={leave:{t:"Leave and attendance",f:[["date","Date","date"],["kind","Type","select:Present,Absent,Paid leave,Sick leave,Half day"],["note","Note","text"]]},
+inc:{t:"Incentives",f:[["month","Month","month"],["target","Target","number"],["ach","Achieved","number"],["amt","Incentive (INR)","number"]]},
+docs:{t:"Documents and KYC",f:[["name","Document","text"],["status","Status","select:Collected,Pending,Verified"],["exp","Expiry (if any)","date"],["file","Attach file (up to 10 MB)","file"]]},
+assets:{t:"Assets",f:[["item","Item (laptop, SIM, ID card)","text"],["issued","Issued on","date"],["ret","Returned on","date"]]},
+train:{t:"Training",f:[["name","Training","text"],["date","Completed on","date"]]},
+notes:{t:"Warnings and notes",f:[["date","Date","date"],["note","Note","text"]]}};
+const ONB=["Documents collected","KYC and background check done","ID card issued","System access given","Training completed","Offer letter signed"];
+const EXIT=["Resignation accepted","Handover done","Assets returned","Final settlement paid","Experience letter issued"];
+let v="dash",cur=null,tab="details",q="",ft="";
+function inp(n,l,t,val){val=val??"";if(t.startsWith("select:"))return `<div><label>${l}<select name="${n}">${t.slice(7).split(",").map(o=>`<option${o===val?" selected":""}>${o}</option>`).join("")}</select></label></div>`;return `<div><label>${l}<input name="${n}" type="${t}" value="${esc(val)}"></label></div>`}
+function alerts(){const a=[];S.emps.filter(e=>e.status!=="Resigned").forEach(e=>{const add=(t,d)=>a.push({id:e.id,t:e.name+": "+t,d});
+if(e.contractEnd&&dd(e.contractEnd)<=30)add("contract ends "+fmt(e.contractEnd),dd(e.contractEnd));
+if(e.probEnd&&dd(e.probEnd)<=30)add("probation ends "+fmt(e.probEnd),dd(e.probEnd));
+e.docs.forEach(x=>{if(x.exp&&dd(x.exp)<=30)add(x.name+" expires "+fmt(x.exp),dd(x.exp))});
+if(e.dob&&ann(e.dob)<=7)add("birthday coming up",ann(e.dob));
+if(e.joined&&dd(e.joined)<0&&ann(e.joined)<=7)add("work anniversary coming up",ann(e.joined))});return a.sort((x,y)=>x.d-y.d)}
+const when=d=>d<0?'<span class="tag b">Overdue</span>':d===0?'<span class="tag w">Today</span>':`<span class="tag ${d<=7?"w":""}">${d} days</span>`;
+function dash(){const act=S.emps.filter(e=>e.status!=="Resigned"),al=alerts();
+return `<h1>Dashboard</h1><p class="sub">Headcount and things that need attention in the next 30 days.</p>
+<div class="grid" style="margin-bottom:16px"><div class="panel stat" style="margin:0"><span class="mute">Active employees</span><b>${act.length}</b></div>${TYPES.map(t=>`<div class="panel stat" style="margin:0"><span class="mute">${t}</span><b>${act.filter(e=>e.type===t).length}</b></div>`).join("")}<div class="panel stat" style="margin:0"><span class="mute">Resigned</span><b>${S.emps.length-act.length}</b></div></div>
+<div class="panel"><h2>Alerts</h2><ul class="al">${al.map(x=>`<li data-open="${x.id}"><span>${esc(x.t)}</span>${when(x.d)}</li>`).join("")||'<li class="mute">Nothing needs attention. Contract, probation and document dates will show here.</li>'}</ul></div>`}
+function list(){const l=S.emps.filter(e=>(e.name+e.id+(e.team||"")).toLowerCase().includes(q.toLowerCase())&&(!ft||e.type===ft));
+return `<div class="row"><h1>Employees</h1><button class="btn" id="add">Add employee</button></div><p class="sub">Click a row to open the full profile.</p>
+<div class="panel"><div class="grid"><label>Search<input id="q" value="${esc(q)}" placeholder="Name, ID or team"></label><label>Type<select id="ft"><option value="">All types</option>${TYPES.map(t=>`<option${t===ft?" selected":""}>${t}</option>`).join("")}</select></label></div>
+<div class="sc" style="margin-top:10px"><table><thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Team</th><th>Phone</th><th>Status</th></tr></thead><tbody>${l.map(e=>`<tr data-open="${e.id}"><td>${e.id}</td><td><b>${esc(e.name)}</b></td><td>${e.type||"-"}</td><td>${esc(e.team||"-")}</td><td>${esc(e.phone||"-")}</td><td><span class="tag ${e.status==="Resigned"?"b":e.status==="On leave"?"w":""}">${e.status}</span></td></tr>`).join("")||'<tr><td colspan="6" class="mute">No employees match. Clear the search or add a new employee.</td></tr>'}</tbody></table></div></div>`}
+function listTab(e,k){const c=L[k];let h="";
+if(k==="leave"){const m=today().slice(0,7),n={};e.leave.filter(x=>x.date&&x.date.startsWith(m)).forEach(x=>n[x.kind]=(n[x.kind]||0)+1);h+=`<p class="mute">This month: ${Object.entries(n).map(([a,b])=>a+" "+b).join(", ")||"no entries yet"}</p>`}
+h+=`<form class="add" data-k="${k}"><div class="grid">${c.f.map(f=>inp(f[0],f[1],f[2])).join("")}</div><p><button class="btn sm">Add entry</button></p></form>`;
+h+=`<div class="sc"><table><thead><tr>${c.f.map(f=>`<th>${f[1]}</th>`).join("")}<th></th></tr></thead><tbody>${e[k].map((x,i)=>`<tr>${c.f.map(f=>`<td>${f[0]==="file"?(x.fid?`<button class="btn sm g" data-view="${x.fid}">View</button> <span class="mute">${esc(x.fname)}</span>`:"-"):esc(x[f[0]]||"-")}</td>`).join("")}<td><button class="btn sm d" data-rm="${k}:${i}">Remove</button></td></tr>`).join("")||`<tr><td colspan="9" class="mute">No entries yet. Use the form above.</td></tr>`}</tbody></table></div>`;return h}
+function prof(){const e=emp(cur);if(!e)return list();
+const tabs=[["details","Details"],["leave","Leave"],["inc","Incentives"],["docs","Documents"],["assets","Assets"],["train","Training"],["notes","Warnings and notes"],["life","Onboarding and exit"]].filter(t=>t[0]!=="inc"||SALES.includes(e.type));
+let b="";
+if(tab==="details"){b=`<form id="df"><div class="grid">${F.filter(f=>!f[4]||f[4].includes(e.type)).map(f=>(f[0]?`<h3 style="grid-column:1/-1">${f[0]}</h3>`:"")+inp(f[1],f[2],f[3],e[f[1]])).join("")}</div><p><button class="btn">Save details</button> <button type="button" class="btn g" id="slipb">Print payslip</button></p></form>`}
+else if(tab==="life")b=`<form id="lf"><h3>Onboarding checklist</h3>${ONB.map(x=>`<label class="chk"><input type="checkbox" data-c="onb" value="${x}"${e.onb[x]?" checked":""}>${x}</label>`).join("")}<h3>Exit process</h3><div class="grid">${inp("exitDate","Last working day","date",e.exitDate)}${inp("notice","Notice period (days)","number",e.notice)}</div>${EXIT.map(x=>`<label class="chk"><input type="checkbox" data-c="ex" value="${x}"${e.ex[x]?" checked":""}>${x}</label>`).join("")}<p><button class="btn">Save checklists</button></p></form>`;
+else b=listTab(e,tab);
+return `<div class="row"><div><button class="btn g sm" id="back">All employees</button><h1 style="margin-top:10px">${esc(e.name||"New employee")}</h1><p class="sub" style="margin:2px 0 0">${e.id} · ${e.type||""} · ${esc(e.team||"")}</p></div><button class="btn d sm" id="del">Delete employee</button></div>
+<div class="tabs">${tabs.map(t=>`<button class="btn sm ${t[0]===tab?"":"g"}" data-tab="${t[0]}">${t[1]}</button>`).join("")}</div><div class="panel">${b}</div>`}
+function rep(){return `<h1>Reports and backup</h1><p class="sub">Download your data or move it to another browser.</p>
+<div class="panel"><h2>Employee list</h2><p class="mute">Opens in Excel.</p><button class="btn" id="csv">Download employees (CSV)</button></div>
+<div class="panel"><h2>Backup</h2><p class="mute">Data lives in this browser only. The backup covers employee records but not attached files, so keep the original documents too.</p><button class="btn" id="bk">Download backup</button> <label class="btn g" style="display:inline-block">Restore backup<input type="file" id="rs" accept=".json" hidden></label></div>`}
+function logv(){return `<h1>Activity log</h1><p class="sub">The latest 200 changes.</p><div class="panel"><ul class="al">${S.log.map(x=>`<li style="cursor:default"><span>${esc(x.m)}</span><span class="mute">${x.t}</span></li>`).join("")||'<li class="mute" style="cursor:default">No changes yet.</li>'}</ul></div>`}
+function dl(name,txt,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type}));a.download=name;a.click()}
+function loginV(){const f=!U.length;return `<div class="panel" style="max-width:380px;margin:8vh auto 0"><h1>${f?"Create the first account":"Sign in"}</h1><p class="sub">${f?"This account will be the admin. You can add HR accounts after you sign in.":"HR Portal"}</p><form id="lg">${f?inp("name","Your name","text"):""}${inp("user","Username","text")}${inp("pw","Password"+(f?" (8 or more characters)":""),"password")}<p><button class="btn">${f?"Create account":"Sign in"}</button></p></form></div>`}
+function usersV(){return `<h1>Users</h1><p class="sub">HR and admin accounts have the same access. Everyone listed here can sign in.</p>
+<div class="panel"><h2>Add a user</h2><form id="uf"><div class="grid">${inp("name","Name","text")}${inp("user","Username","text")}${inp("role","Role","select:HR,Admin")}${inp("pw","Password (8 or more characters)","password")}</div><p><button class="btn sm">Add user</button></p></form></div>
+<div class="panel"><div class="sc"><table><thead><tr><th>Name</th><th>Username</th><th>Role</th><th></th></tr></thead><tbody>${U.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.user)}</td><td>${u.role}</td><td><button class="btn sm g" data-pw="${esc(u.user)}">Change password</button> ${u.user!==me?`<button class="btn sm d" data-ru="${esc(u.user)}">Remove</button>`:'<span class="mute">You</span>'}</td></tr>`).join("")}</tbody></table></div></div>`}
+function render(){if(me&&!U.find(u=>u.user===me))setMe(null);$(".app").classList.toggle("out",!me);if(!me){$("#main").innerHTML=loginV();bind();return}$("#out").textContent="Sign out ("+me+")";$$("nav button").forEach(b=>b.setAttribute("aria-current",b.dataset.v===(v==="prof"?"list":v)));
+$("#main").innerHTML=({dash,list,prof,rep,log:logv,users:usersV})[v]();bind()}
+function bind(){
+$$("[data-open]").forEach(r=>r.onclick=()=>{cur=r.dataset.open;v="prof";tab="details";render()});
+$$("[data-view]").forEach(b=>b.onclick=async()=>{try{const bl=await fget(b.dataset.view);if(!bl)throw 0;window.open(URL.createObjectURL(bl),"_blank")}catch(x){toast("File not found in this browser")}});
+$$("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;render()});
+const g=s=>$(s);
+if(g("#q"))g("#q").oninput=ev=>{q=ev.target.value;const p=ev.target.selectionStart;render();const n=$("#q");n.focus();n.setSelectionRange(p,p)};
+if(g("#ft"))g("#ft").onchange=ev=>{ft=ev.target.value;render()};
+if(g("#add"))g("#add").onclick=()=>{const id="E"+(1001+S.emps.reduce((m,e)=>Math.max(m,+e.id.slice(1)-1000),0));S.emps.push(mk({id,name:"New employee",type:TYPES[0],joined:today()}));log("Added "+id);save();cur=id;v="prof";tab="details";render()};
+if(g("#back"))g("#back").onclick=()=>{v="list";render()};
+if(g("#del"))g("#del").onclick=()=>{const e=emp(cur);if(confirm("Delete "+e.name+" and their files permanently?")){e.docs.forEach(x=>x.fid&&fdel(x.fid));S.emps=S.emps.filter(x=>x!==e);log("Deleted "+e.id+" "+e.name);save();v="list";render();toast("Employee deleted")}};
+if(g("#df")){g("#df").onsubmit=ev=>{ev.preventDefault();const e=emp(cur);new FormData(ev.target).forEach((val,k)=>e[k]=val);log("Updated details of "+e.name);save();toast("Details saved");render()};
+g("#slipb").onclick=()=>{const e=emp(cur),s=+e.salary||0,d=(+e.pf||0)+(+e.esi||0)+(+e.tds||0),m=new Date().toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+$("#slip").innerHTML=`<h2>Payslip for ${m}</h2><p>${esc(e.name)} (${e.id}) · ${e.type}<br>Bank account: ${esc(e.bank||"-")} · PAN: ${esc(e.pan||"-")}</p><table><tr><td>Gross salary</td><td>${s}</td></tr><tr><td>PF</td><td>${+e.pf||0}</td></tr><tr><td>ESI</td><td>${+e.esi||0}</td></tr><tr><td>TDS</td><td>${+e.tds||0}</td></tr><tr><td><b>Net pay</b></td><td><b>${s-d}</b></td></tr></table>`;window.print()}}
+$$(".add").forEach(f=>f.onsubmit=async ev=>{ev.preventDefault();const e=emp(cur),o={};new FormData(f).forEach((val,k)=>{if(!(val instanceof File))o[k]=val});
+const fi=f.querySelector("[name=file]"),file=fi&&fi.files[0];
+if(file){if(file.size>10485760)return toast("File is larger than 10 MB");try{o.fid="f"+Date.now();o.fname=file.name;o.name=o.name||file.name;await fput(o.fid,file)}catch(x){return toast("Could not store the file in this browser")}}
+else if(f.dataset.k==="docs"&&!o.name)return toast("Enter a document name or attach a file");
+e[f.dataset.k].push(o);log("Added "+f.dataset.k+" entry for "+e.name);save();render()});
+$$("[data-rm]").forEach(b=>b.onclick=()=>{const[k,i]=b.dataset.rm.split(":"),e=emp(cur),x=e[k].splice(+i,1)[0];if(x&&x.fid)fdel(x.fid);log("Removed "+k+" entry for "+e.name);save();render()});
+if(g("#lf"))g("#lf").onsubmit=ev=>{ev.preventDefault();const e=emp(cur);e.onb={};e.ex={};$$("#lf [data-c]").forEach(c=>{e[c.dataset.c][c.value]=c.checked});e.exitDate=$("#lf [name=exitDate]").value;e.notice=$("#lf [name=notice]").value;log("Updated checklists of "+e.name);save();toast("Checklists saved")};
+if(g("#csv"))g("#csv").onclick=()=>{const k=["id","name","type","status","team","mgr","phone","email","joined","contractEnd","salary"];dl("employees.csv",[k.join(",")].concat(S.emps.map(e=>k.map(x=>'"'+String(e[x]??"").replace(/"/g,'""')+'"').join(","))).join("\n"),"text/csv")};
+if(g("#bk"))g("#bk").onclick=()=>dl("hr-backup-"+today()+".json",JSON.stringify(S),"application/json");
+if(g("#rs"))g("#rs").onchange=ev=>{const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.emps)throw 0;S=d;log("Restored backup");save();toast("Backup restored");render()}catch(x){toast("That file is not a valid backup")}};r.readAsText(f)}
+if(g("#lg"))g("#lg").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target)),user=(d.user||"").trim().toLowerCase();
+if(!U.length){if(!d.name||!user||d.pw.length<8)return toast("Enter your name, a username and a password of 8 or more characters");const sl=salt();U.push({name:d.name.trim(),user,role:"Admin",salt:sl,h:await hash(d.pw,sl)});usave();setMe(user);log("Created the first account");save();v="dash";render();return}
+if(Date.now()<lock)return toast("Too many attempts. Wait a minute and try again");
+const u=U.find(x=>x.user===user);if(u&&(x=>u.h===x||u.w===x)(await hash(d.pw,u.salt))){tries=0;setMe(user);log("Signed in");save();v="dash";render()}else{if(++tries>=5){lock=Date.now()+60000;tries=0}toast("Wrong username or password")}};
+if(g("#uf"))g("#uf").onsubmit=async ev=>{ev.preventDefault();const d=Object.fromEntries(new FormData(ev.target)),user=(d.user||"").trim().toLowerCase();
+if(!d.name||!user||d.pw.length<8)return toast("Enter a name, a username and a password of 8 or more characters");
+if(U.find(x=>x.user===user))return toast("That username is already taken");
+const sl=salt();U.push({name:d.name.trim(),user,role:d.role,salt:sl,h:await hash(d.pw,sl)});usave();log("Added user "+user+" ("+d.role+")");save();toast("User added");render()};
+$$("[data-pw]").forEach(b=>b.onclick=async()=>{const pw=prompt("New password for "+b.dataset.pw+" (8 or more characters)");if(!pw)return;if(pw.length<8)return toast("Password must be 8 or more characters");const u=U.find(x=>x.user===b.dataset.pw);u.salt=salt();u.h=await hash(pw,u.salt);delete u.w;usave();log("Changed password of "+u.user);save();toast("Password changed")});
+$$("[data-ru]").forEach(b=>b.onclick=()=>{if(confirm("Remove user "+b.dataset.ru+"?")){U=U.filter(x=>x.user!==b.dataset.ru);usave();log("Removed user "+b.dataset.ru);save();render()}});
+}
+$$("nav button").forEach(b=>b.onclick=()=>{v=b.dataset.v;if(v==="out"){log("Signed out");save();setMe(null);v="dash"}render()});
+render();
+</script>
+</body>
+</html>
